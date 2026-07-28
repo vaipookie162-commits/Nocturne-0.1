@@ -1,0 +1,6 @@
+{
+  "name": "Aura Liquid Glass Music Player",
+  "description": "A premium mobile music player UI blending Apple Music clean layout and Motorola modern design, featuring interactive Liquid Glass Lens 3D artwork refraction, Material 3 navigation, dynamic ambient glow, live lyrics, and hi-res audio controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

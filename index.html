@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aura Liquid Glass Music Player</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"Space Grotesk"', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    /* Custom Scrollbar */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* 3D Perspective */
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+    .transform-style-3d {
+      transform-style: preserve-3d;
+    }
+
+    /* Glass Optics Inner Shadows */
+    .glass-rim {
+      box-shadow: inset 0 2px 12px rgba(255, 255, 255, 0.5), inset 0 -2px 12px rgba(0, 0, 0, 0.6);
+    }
+    .droplet-shadow {
+      box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.8), inset -2px -2px 4px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Range Input Custom Styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+    input[type=range]:focus {
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 14px;
+      width: 14px;
+      border-radius: 50%;
+      background: #ffffff;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+      margin-top: -5px;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 4px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex flex-col items-center justify-between p-2 sm:p-6 font-sans selection:bg-cyan-500 selection:text-black overflow-x-hidden">
+
+  <!-- SVG Liquid Lens Refraction Filter Definition -->
+  <svg class="absolute w-0 h-0 invisible pointer-events-none">
+    <defs>
+      <filter id="liquidRefractionFilter" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence id="feTurbulence" type="fractalNoise" baseFrequency="0.025" numOctaves="2" result="noise">
+          <animate id="refractionAnim" attributeName="baseFrequency" dur="8s" values="0.020;0.032;0.020" repeatCount="indefinite" />
+        </feTurbulence>
+        <feDisplacementMap id="feDisplacement" in="SourceGraphic" in2="noise" scale="18" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- Header Bar -->
+  <header class="w-full max-w-xl flex items-center justify-between py-2 px-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl mb-3 shadow-xl z-50">
+    <div class="flex items-center gap-2">
+      <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></div>
+      <span class="text-xs font-bold tracking-tight text-white flex items-center gap-1.5">
+        Aura <span class="text-cyan-400">Liquid Glass</span> Music
+      </span>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button id="toggleFrameBtn" onclick="togglePhoneFrame()" class="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-xs text-white/90 font-medium transition cursor-pointer">
+        <i data-lucide="smartphone" class="w-3.5 h-3.5 text-cyan-300"></i>
+        <span class="hidden sm:inline" id="frameBtnText">Viewport Mode</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Viewport / Phone Frame Container -->
+  <main class="w-full flex-1 flex items-center justify-center relative">
+    <div id="phoneFrame" class="relative w-full max-w-[400px] h-[830px] rounded-[52px] bg-black p-3.5 border-[5px] border-slate-800/90 shadow-[0_25px_70px_rgba(0,0,0,0.95),0_0_50px_rgba(6,182,212,0.25)] flex flex-col overflow-hidden ring-1 ring-white/20 my-auto transition-all duration-300">
+      
+      <!-- Punch-hole Camera Notch -->
+      <div class="absolute top-4 left-1/2 -translate-x-1/2 w-24 h-5 bg-black rounded-full border border-white/10 z-50 flex items-center justify-center gap-2 pointer-events-none">
+        <div class="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-700"></div>
+        <div class="w-1.5 h-1.5 rounded-full bg-blue-900/60"></div>
+      </div>
+
+      <!-- Phone Status Bar -->
+      <div class="w-full h-8 px-6 pt-1 flex items-center justify-between text-[11px] font-mono text-white/90 z-40 select-none pointer-events-none">
+        <span id="clockDisplay">09:41</span>
+        <div class="flex items-center gap-2">
+          <span class="text-[9px] px-1.5 py-0.2 rounded bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
+            Hi-Res
+          </span>
+          <i data-lucide="wifi" class="w-3.5 h-3.5 text-white/80"></i>
+          <i data-lucide="battery" class="w-4 h-4 text-emerald-400"></i>
+        </div>
+      </div>
+
+      <!-- Phone Screen Container -->
+      <div class="relative flex-1 w-full h-full rounded-[42px] overflow-hidden flex flex-col bg-slate-950">
+        
+        <!-- Ambient Color Glow Background -->
+        <div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+          <div id="ambientGlow1" class="absolute -top-20 -left-20 w-[500px] h-[500px] rounded-full blur-[80px] transition-all duration-1000 opacity-70" style="background: radial-gradient(circle at 30% 20%, rgba(6,182,212,0.5) 0%, transparent 70%);"></div>
+          <div id="ambientGlow2" class="absolute -bottom-20 -right-20 w-[450px] h-[450px] rounded-full blur-[90px] transition-all duration-1000 opacity-50" style="background: radial-gradient(circle at 70% 80%, rgba(59,130,246,0.5) 0%, transparent 65%);"></div>
+          <div class="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
+        </div>
+
+        <!-- Mini Player Bar (Visible on non-Playing tabs) -->
+        <div id="miniPlayer" onclick="switchTab('now_playing')" class="hidden relative z-30 mx-3 my-2 p-2.5 rounded-2xl bg-black/70 border border-white/20 backdrop-blur-xl items-center justify-between cursor-pointer shadow-xl group hover:border-white/40 transition">
+          <div class="flex items-center gap-3 truncate">
+            <img id="miniArt" src="" alt="" class="w-10 h-10 rounded-xl object-cover shadow-md" />
+            <div class="truncate">
+              <h4 id="miniTitle" class="text-xs font-bold text-white truncate"></h4>
+              <p id="miniArtist" class="text-[10px] text-white/60 truncate"></p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="event.stopPropagation(); togglePlay();" class="p-2 rounded-full bg-white text-black hover:scale-105 transition">
+              <i id="miniPlayIcon" data-lucide="play" class="w-4 h-4 fill-black"></i>
+            </button>
+            <button onclick="event.stopPropagation(); nextSong();" class="p-2 text-white/70 hover:text-white">
+              <i data-lucide="skip-forward" class="w-4 h-4 fill-current"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- VIEW: Now Playing -->
+        <div id="view-now_playing" class="flex-1 flex flex-col justify-between p-4 sm:p-5 text-white select-none relative overflow-y-auto no-scrollbar pb-24 z-10">
+          <!-- Top Header Bar -->
+          <div class="flex items-center justify-between z-10 pt-1 pb-2">
+            <button onclick="toggleQueueModal()" class="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/80 transition cursor-pointer">
+              <i data-lucide="chevron-down" class="w-5 h-5"></i>
+            </button>
+
+            <div class="text-center space-y-0.5">
+              <span class="text-[10px] font-semibold uppercase tracking-widest text-white/50 block">PLAYING FROM ALBUM</span>
+              <h3 id="albumNameText" class="text-xs font-bold text-white/90 truncate max-w-[190px]">Refraction Dreams</h3>
+            </div>
+
+            <button onclick="showToast('Link copied! Ready to share track.')" class="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/80 transition cursor-pointer">
+              <i data-lucide="share-2" class="w-4.5 h-4.5"></i>
+            </button>
+          </div>
+
+          <!-- Audio Format Badge -->
+          <div class="flex justify-center my-1 z-10">
+            <button onclick="toggleOutputModal()" class="px-3 py-1 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-[10px] font-mono font-medium text-cyan-200 backdrop-blur-md transition flex items-center gap-1.5 shadow-sm hover:scale-105">
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+              <span id="hiResBadgeText">24-bit / 192kHz Hi-Res Lossless</span>
+            </button>
+          </div>
+
+          <!-- Central Album Artwork with 3D Liquid Glass Lens -->
+          <div class="my-auto py-2 z-10">
+            <div id="lensContainer" class="relative w-full max-w-[320px] aspect-square mx-auto my-2 select-none perspective-1000 cursor-pointer">
+              
+              <!-- Dynamic Underglow -->
+              <div id="artworkUnderglow" class="absolute -inset-4 rounded-full pointer-events-none z-0 transition-all duration-700" style="background: radial-gradient(circle, rgba(6,182,212,0.5) 0%, transparent 70%); filter: blur(36px);"></div>
+
+              <!-- Main Lens -->
+              <div id="lensCard" class="relative w-full h-full z-10 shadow-2xl rounded-[42px] overflow-hidden group border border-white/20 transform-style-3d transition-transform duration-200">
+                <!-- Base Album Image -->
+                <img id="mainAlbumArt" src="" alt="Album Art" class="absolute inset-0 w-full h-full object-cover rounded-[inherit]" />
+
+                <!-- Magnified Liquid Refraction Layer -->
+                <div id="refractionLayer" class="absolute inset-0 w-full h-full pointer-events-none rounded-[inherit] opacity-95" style="filter: url(#liquidRefractionFilter); transform: scale(1.18);">
+                  <img id="refractAlbumArt" src="" alt="" class="w-full h-full object-cover rounded-[inherit]" />
+                </div>
+
+                <!-- Surface Specular Gloss -->
+                <div id="glossHighlight" class="absolute inset-0 pointer-events-none mix-blend-overlay rounded-[inherit]" style="background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.08) 45%, rgba(0,0,0,0.3) 100%);"></div>
+
+                <!-- Metallic Lens Edge Rim -->
+                <div class="absolute inset-0 rounded-[inherit] border-[2px] border-white/30 glass-rim pointer-events-none"></div>
+
+                <!-- Water Droplets Overlay -->
+                <div id="dropletsOverlay" class="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
+                  <div class="absolute w-8 h-8 rounded-full bg-white/20 backdrop-blur-md border border-white/40 droplet-shadow top-[22%] left-[28%]">
+                    <div class="w-1.5 h-1.5 bg-white rounded-full absolute top-1.5 left-2 opacity-90"></div>
+                  </div>
+                  <div class="absolute w-5 h-5 rounded-full bg-white/20 backdrop-blur-md border border-white/40 droplet-shadow bottom-[32%] right-[24%]">
+                    <div class="w-1 h-1 bg-white rounded-full absolute top-1 left-1 opacity-80"></div>
+                  </div>
+                </div>
+
+                <!-- Liquid Lens Tuning Button -->
+                <button onclick="event.stopPropagation(); toggleOpticsModal();" class="absolute bottom-3 right-3 p-2.5 rounded-full bg-black/40 hover:bg-black/60 text-white/90 backdrop-blur-md border border-white/20 transition duration-200 hover:scale-105 shadow-lg opacity-90 z-20 flex items-center gap-1.5 text-xs font-medium">
+                  <i data-lucide="sparkles" class="w-3.5 h-3.5 text-cyan-300 animate-pulse"></i>
+                  <span class="hidden sm:inline">Liquid Lens</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Song Info -->
+          <div class="flex items-center justify-between my-2 z-10 px-1">
+            <div class="space-y-1 max-w-[75%]">
+              <h1 id="songTitleText" class="text-xl sm:text-2xl font-black tracking-tight text-white leading-tight truncate">Liquid Horizon</h1>
+              <p id="artistNameText" class="text-xs sm:text-sm font-medium text-white/70 truncate">Aura & Cybernetics</p>
+            </div>
+            <button id="favoriteBtn" onclick="toggleFavorite()" class="p-3 rounded-full bg-white/10 text-white/60 hover:text-white transition">
+              <i id="favoriteIcon" data-lucide="heart" class="w-5 h-5"></i>
+            </button>
+          </div>
+
+          <!-- Progress Slider -->
+          <div class="space-y-1.5 my-2 z-10">
+            <input id="seekSlider" type="range" min="0" max="100" value="0" oninput="onSeekInput(this.value)" class="w-full cursor-pointer" />
+            <div class="flex justify-between text-[11px] font-mono text-white/60 px-0.5">
+              <span id="currentTimeText">0:00</span>
+              <span id="remainingTimeText">-3:48</span>
+            </div>
+          </div>
+
+          <!-- Playback Controls -->
+          <div class="flex items-center justify-between my-2 z-10 px-2">
+            <button id="shuffleBtn" onclick="toggleShuffle()" class="p-2.5 rounded-full text-white/50 hover:text-white transition">
+              <i data-lucide="shuffle" class="w-4.5 h-4.5"></i>
+            </button>
+
+            <button onclick="prevSong()" class="p-3 rounded-full text-white hover:bg-white/10 transition active:scale-90">
+              <i data-lucide="skip-back" class="w-6 h-6 fill-current"></i>
+            </button>
+
+            <button id="mainPlayBtn" onclick="togglePlay()" class="p-5 rounded-full bg-white text-black shadow-2xl hover:scale-105 active:scale-95 transition-all">
+              <i id="mainPlayIcon" data-lucide="play" class="w-7 h-7 fill-black translate-x-0.5"></i>
+            </button>
+
+            <button onclick="nextSong()" class="p-3 rounded-full text-white hover:bg-white/10 transition active:scale-90">
+              <i data-lucide="skip-forward" class="w-6 h-6 fill-current"></i>
+            </button>
+
+            <button id="repeatBtn" onclick="toggleRepeat()" class="p-2.5 rounded-full text-white/50 hover:text-white transition relative">
+              <i data-lucide="repeat" class="w-4.5 h-4.5"></i>
+            </button>
+          </div>
+
+          <!-- Volume & Output Target Bar -->
+          <div class="flex items-center gap-3 my-2 z-10 p-2.5 rounded-2xl bg-white/5 border border-white/10">
+            <button onclick="toggleMute()" class="text-white/60 hover:text-white transition">
+              <i id="volumeIcon" data-lucide="volume-2" class="w-4 h-4"></i>
+            </button>
+            <input id="volumeSlider" type="range" min="0" max="1" step="0.02" value="0.85" oninput="onVolumeInput(this.value)" class="w-full" />
+            <button onclick="toggleOutputModal()" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-[10px] font-medium text-white/90 whitespace-nowrap transition cursor-pointer">
+              <i data-lucide="headphones" class="w-3.5 h-3.5 text-cyan-300"></i>
+              <span id="activeDeviceText" class="truncate max-w-[90px]">Moto Buds Pro 2</span>
+            </button>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="flex items-center justify-around z-10 pt-1 border-t border-white/10">
+            <button onclick="toggleLyricsModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-xs font-medium text-white/80 transition cursor-pointer">
+              <i data-lucide="mic-2" class="w-4 h-4 text-pink-400"></i>
+              <span>Lyrics</span>
+            </button>
+            <button onclick="toggleOpticsModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-xs font-medium text-white/80 transition cursor-pointer">
+              <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i>
+              <span>Optics</span>
+            </button>
+            <button onclick="toggleQueueModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-xs font-medium text-white/80 transition cursor-pointer">
+              <i data-lucide="list-music" class="w-4 h-4 text-purple-400"></i>
+              <span>Up Next</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- VIEW: Discover -->
+        <div id="view-discover" class="hidden flex-1 overflow-y-auto p-5 text-white space-y-6 no-scrollbar pb-24 z-10">
+          <div class="flex items-center justify-between border-b border-white/10 pb-3">
+            <div>
+              <h2 class="text-lg font-extrabold text-white flex items-center gap-2">
+                Discover & Radar <i data-lucide="sparkles" class="w-4 h-4 text-cyan-400 animate-pulse"></i>
+              </h2>
+              <p class="text-xs text-white/60">Curated in Lossless & Moto Spatial Audio</p>
+            </div>
+          </div>
+
+          <!-- Hero Featured Card -->
+          <div onclick="selectSong(0)" class="relative rounded-3xl overflow-hidden p-5 border border-white/20 shadow-2xl cursor-pointer group bg-gradient-to-br from-cyan-900/80 to-slate-950">
+            <div class="relative z-10 flex items-center justify-between">
+              <div class="space-y-1 max-w-[65%]">
+                <span class="px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] font-bold uppercase tracking-wider text-white">Featured Track</span>
+                <h3 class="text-lg font-black text-white group-hover:text-cyan-300 transition">Liquid Horizon</h3>
+                <p class="text-xs text-white/80">Aura & Cybernetics</p>
+                <p class="text-[10px] font-mono text-cyan-200 pt-1">24-bit / 192kHz Hi-Res Lossless</p>
+              </div>
+              <img id="heroArt" src="" alt="" class="w-20 h-20 rounded-2xl object-cover shadow-2xl border border-white/30" />
+            </div>
+          </div>
+
+          <!-- Trending List -->
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-white/60 mb-3 flex items-center gap-1.5">
+              <i data-lucide="flame" class="w-4 h-4 text-orange-400"></i> Trending Spatials
+            </h3>
+            <div id="trendingGrid" class="flex gap-3 overflow-x-auto no-scrollbar pb-2"></div>
+          </div>
+        </div>
+
+        <!-- VIEW: Library -->
+        <div id="view-library" class="hidden flex-1 overflow-y-auto p-5 text-white space-y-6 no-scrollbar pb-24 z-10">
+          <div class="flex items-center justify-between border-b border-white/10 pb-3">
+            <div>
+              <h2 class="text-lg font-extrabold text-white">Your Music Library</h2>
+              <p class="text-xs text-white/60">5 Offline Tracks</p>
+            </div>
+          </div>
+          <div id="librarySongList" class="space-y-2"></div>
+        </div>
+
+        <!-- VIEW: Search -->
+        <div id="view-search" class="hidden flex-1 overflow-y-auto p-5 text-white space-y-5 no-scrollbar pb-24 z-10">
+          <div class="relative">
+            <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50"></i>
+            <input type="text" id="searchInput" oninput="onSearchInput(this.value)" placeholder="Search songs, artists, genres..." class="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-xs text-white placeholder-white/40 focus:outline-none focus:border-cyan-400" />
+          </div>
+          <div id="searchResultsList" class="space-y-2"></div>
+        </div>
+
+        <!-- VIEW: Audio Equalizer -->
+        <div id="view-equalizer" class="hidden flex-1 overflow-y-auto p-5 text-white space-y-6 no-scrollbar pb-24 z-10">
+          <div class="flex items-center justify-between border-b border-white/10 pb-3">
+            <div class="flex items-center gap-2.5">
+              <div class="p-2.5 rounded-2xl bg-cyan-500/20 text-cyan-300">
+                <i data-lucide="sliders-horizontal" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h2 class="text-base font-bold text-white flex items-center gap-2">
+                  Moto Audio & EQ
+                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">Dolby Atmos</span>
+                </h2>
+                <p class="text-xs text-white/60">3D Spatial sound engine tuning</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Spectrum Canvas -->
+          <div class="p-4 rounded-3xl bg-black/60 border border-white/10 shadow-xl relative overflow-hidden">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] font-mono text-cyan-300 flex items-center gap-1.5">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 animate-pulse"></i> Real-time Spectrum
+              </span>
+              <span class="text-[10px] text-white/50 font-mono">24-bit / 192kHz</span>
+            </div>
+            <canvas id="spectrumCanvas" width="320" height="65" class="w-full h-[65px] rounded-xl"></canvas>
+          </div>
+
+          <!-- EQ Presets -->
+          <div>
+            <span class="text-xs font-semibold uppercase tracking-wider text-white/50 block mb-2.5">Presets</span>
+            <div id="presetGrid" class="grid grid-cols-2 gap-2"></div>
+          </div>
+        </div>
+
+        <!-- MODAL: Lyrics -->
+        <div id="modal-lyrics" class="hidden absolute inset-0 z-40 bg-black/85 backdrop-blur-2xl flex flex-col p-6 text-white overflow-hidden">
+          <div class="flex items-center justify-between pb-4 border-b border-white/10">
+            <div class="flex items-center gap-2">
+              <div class="p-2 rounded-xl bg-pink-500/20 text-pink-300">
+                <i data-lucide="mic-2" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h2 class="text-sm font-semibold tracking-wide text-white">Live Synced Lyrics</h2>
+                <p id="lyricsSubText" class="text-xs text-white/60"></p>
+              </div>
+            </div>
+            <button onclick="toggleLyricsModal()" class="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition">
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <div id="lyricsList" class="flex-1 overflow-y-auto py-8 space-y-6 no-scrollbar"></div>
+        </div>
+
+        <!-- MODAL: Queue -->
+        <div id="modal-queue" class="hidden absolute inset-0 z-40 bg-black/85 backdrop-blur-2xl flex flex-col p-5 text-white overflow-hidden">
+          <div class="flex items-center justify-between pb-4 border-b border-white/10">
+            <div class="flex items-center gap-2">
+              <div class="p-2 rounded-xl bg-cyan-500/20 text-cyan-300">
+                <i data-lucide="list-music" class="w-5 h-5"></i>
+              </div>
+              <h2 class="text-sm font-semibold tracking-wide text-white">Up Next & Queue</h2>
+            </div>
+            <button onclick="toggleQueueModal()" class="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition">
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <div id="queueList" class="flex-1 overflow-y-auto py-4 space-y-3 no-scrollbar"></div>
+        </div>
+
+        <!-- MODAL: Output Selector -->
+        <div id="modal-output" class="hidden absolute inset-0 z-50 bg-black/85 backdrop-blur-2xl flex flex-col justify-end p-5 text-white">
+          <div class="bg-slate-900/90 border border-white/20 rounded-3xl p-5 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+              <h3 class="text-sm font-bold text-white">Audio Output & AirPlay</h3>
+              <button onclick="toggleOutputModal()" class="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <div id="outputDeviceList" class="space-y-2"></div>
+          </div>
+        </div>
+
+        <!-- MODAL: Liquid Lens Optics Customizer -->
+        <div id="modal-optics" class="hidden absolute top-4 inset-x-4 bottom-20 z-40 p-4 rounded-[36px] bg-black/90 backdrop-blur-xl border border-white/20 text-white flex flex-col justify-between shadow-2xl overflow-y-auto">
+          <div class="flex items-center justify-between pb-2 border-b border-white/10">
+            <div class="flex items-center gap-2">
+              <i data-lucide="droplet" class="w-4 h-4 text-cyan-400"></i>
+              <h3 class="text-sm font-semibold">Liquid Glass Optics</h3>
+            </div>
+            <button onclick="toggleOpticsModal()" class="text-xs px-2.5 py-1 rounded-full bg-white/20 text-white font-medium">Done</button>
+          </div>
+
+          <div class="space-y-3 my-auto text-xs">
+            <div>
+              <div class="flex justify-between mb-1 text-white/70">
+                <span>Refraction Power</span>
+                <span id="refractionValText" class="font-mono text-cyan-300">55%</span>
+              </div>
+              <input type="range" min="0" max="100" value="55" oninput="updateRefraction(this.value)" class="w-full" />
+            </div>
+
+            <div>
+              <div class="flex justify-between mb-1 text-white/70">
+                <span>Magnification Zoom</span>
+                <span id="zoomValText" class="font-mono text-cyan-300">1.18x</span>
+              </div>
+              <input type="range" min="1.0" max="1.6" step="0.05" value="1.18" oninput="updateZoom(this.value)" class="w-full" />
+            </div>
+
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-white/70">Water Droplet Lens</span>
+              <button id="dropletsToggleBtn" onclick="toggleDropletsOptic()" class="w-10 h-5 rounded-full bg-cyan-500 p-0.5 flex items-center justify-end">
+                <span class="w-4 h-4 rounded-full bg-white shadow"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Toast Floating Banner -->
+        <div id="toastBanner" class="hidden absolute top-12 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-cyan-400 text-black text-xs font-bold shadow-2xl flex items-center gap-2">
+          <i data-lucide="sparkles" class="w-4 h-4 fill-black"></i>
+          <span id="toastMsg"></span>
+        </div>
+
+      </div>
+
+      <!-- Google Material 3 Bottom Navigation Bar -->
+      <nav class="w-full h-[72px] bg-black/60 backdrop-blur-2xl border-t border-white/10 px-2 flex items-center justify-around z-40 relative select-none">
+        <button onclick="switchTab('now_playing')" id="nav-now_playing" class="flex flex-col items-center justify-center flex-1 h-full py-1 group">
+          <div class="pill-indicator relative flex items-center justify-center w-14 h-8 rounded-full my-0.5 bg-cyan-500/30 border border-cyan-400/50">
+            <i data-lucide="disc" class="w-5 h-5 text-white"></i>
+          </div>
+          <span class="text-[11px] font-semibold text-white">Playing</span>
+        </button>
+
+        <button onclick="switchTab('discover')" id="nav-discover" class="flex flex-col items-center justify-center flex-1 h-full py-1 group">
+          <div class="pill-indicator relative flex items-center justify-center w-14 h-8 rounded-full my-0.5">
+            <i data-lucide="compass" class="w-5 h-5 text-white/55"></i>
+          </div>
+          <span class="text-[11px] font-medium text-white/50">Discover</span>
+        </button>
+
+        <button onclick="switchTab('library')" id="nav-library" class="flex flex-col items-center justify-center flex-1 h-full py-1 group">
+          <div class="pill-indicator relative flex items-center justify-center w-14 h-8 rounded-full my-0.5">
+            <i data-lucide="library" class="w-5 h-5 text-white/55"></i>
+          </div>
+          <span class="text-[11px] font-medium text-white/50">Library</span>
+        </button>
+
+        <button onclick="switchTab('search')" id="nav-search" class="flex flex-col items-center justify-center flex-1 h-full py-1 group">
+          <div class="pill-indicator relative flex items-center justify-center w-14 h-8 rounded-full my-0.5">
+            <i data-lucide="search" class="w-5 h-5 text-white/55"></i>
+          </div>
+          <span class="text-[11px] font-medium text-white/50">Search</span>
+        </button>
+
+        <button onclick="switchTab('equalizer')" id="nav-equalizer" class="flex flex-col items-center justify-center flex-1 h-full py-1 group">
+          <div class="pill-indicator relative flex items-center justify-center w-14 h-8 rounded-full my-0.5">
+            <i data-lucide="sliders-horizontal" class="w-5 h-5 text-white/55"></i>
+          </div>
+          <span class="text-[11px] font-medium text-white/50">Audio EQ</span>
+        </button>
+      </nav>
+
+      <!-- Bottom Home Bar Indicator -->
+      <div class="w-full h-3 flex items-center justify-center pt-0.5 pointer-events-none z-50">
+        <div class="w-32 h-1 bg-white/40 rounded-full"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="w-full max-w-xl pt-3 text-center text-[11px] text-white/40 font-mono flex items-center justify-between">
+    <span>Aura Liquid Glass Engine</span>
+    <span class="flex items-center gap-1 text-cyan-400">
+      <i data-lucide="sparkles" class="w-3 h-3"></i> Hi-Res Audio Player
+    </span>
+  </footer>
+
+  <!-- STANDALONE JAVASCRIPT LOGIC -->
+  <script>
+    // SONGS DATABASE
+    const SONGS = [
+      {
+        id: 'song-1',
+        title: 'Liquid Horizon',
+        artist: 'Aura & Cybernetics',
+        album: 'Refraction Dreams (Deluxe)',
+        duration: 228,
+        albumArt: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop',
+        accentColor: '#06b6d4',
+        glowColor: 'rgba(6, 182, 212, 0.5)',
+        secondaryColor: '#3b82f6',
+        hiResFormat: '24-bit / 192kHz Hi-Res Lossless',
+        synthFreq: 220,
+        lyrics: [
+          { time: 0, text: '♪ (Ethereal liquid glass synth intro playing)' },
+          { time: 12, text: 'Floating through the liquid lens of time' },
+          { time: 24, text: 'Refracting light in prismatic crystal rays' },
+          { time: 38, text: 'Every vibration ripples through the tide' },
+          { time: 54, text: 'A thousand colors merging in the dark' },
+          { time: 70, text: 'Feel the bass pulse like a liquid droplet' },
+          { time: 88, text: 'Deep under water, sound surrounds our souls' },
+          { time: 108, text: 'Echoes of tomorrow in lossless waves' },
+          { time: 128, text: 'Aura carries us beyond the horizon' }
+        ]
+      },
+      {
+        id: 'song-2',
+        title: 'Neon Synapse',
+        artist: 'Motorola Sound Lab ft. Kairos',
+        album: 'Edge Odyssey 2026',
+        duration: 214,
+        albumArt: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=800&auto=format&fit=crop',
+        accentColor: '#ec4899',
+        glowColor: 'rgba(236, 72, 153, 0.5)',
+        secondaryColor: '#8b5cf6',
+        hiResFormat: 'Dolby Atmos • Moto Spatial Sound',
+        synthFreq: 146.83,
+        lyrics: [
+          { time: 0, text: '♪ (Analog synth pulse & retro drum beat)' },
+          { time: 10, text: 'High voltage streaming through the neon grid' },
+          { time: 22, text: 'Speeding down the dark highway past the holographic glow' },
+          { time: 35, text: 'Feel the frequency vibrating through your chest' },
+          { time: 50, text: 'Moto Spatial Audio locked in full 3D stereo' }
+        ]
+      },
+      {
+        id: 'song-3',
+        title: 'Solar Eclipse Mirage',
+        artist: 'Helios & The Velvet Sun',
+        album: 'Cosmic Reflection',
+        duration: 245,
+        albumArt: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop',
+        accentColor: '#f97316',
+        glowColor: 'rgba(249, 115, 22, 0.5)',
+        secondaryColor: '#eab308',
+        hiResFormat: '24-bit / 96kHz Apple Lossless',
+        synthFreq: 196,
+        lyrics: [
+          { time: 0, text: '♪ (Muted electric piano with vinyl crackle)' },
+          { time: 15, text: 'Peach sky fading as the sun meets the ocean floor' },
+          { time: 30, text: 'Warm breeze blowing through empty shoreline roads' }
+        ]
+      }
+    ];
+
+    const OUTPUT_DEVICES = [
+      { id: 'dev-1', name: 'Moto Buds Pro 2', type: 'bluetooth', sub: 'Dolby Atmos • LDAC Hi-Res' },
+      { id: 'dev-2', name: 'Motorola Edge Speakers', type: 'device', sub: 'Stereo Speakers • CrystalTalk' },
+      { id: 'dev-3', name: 'Apple HomePod Studio', type: 'airplay', sub: 'AirPlay 2 • Lossless' }
+    ];
+
+    const PRESETS = [
+      { id: 'p1', name: 'Motorola Spatial Sound' },
+      { id: 'p2', name: 'Aura Liquid Bass' },
+      { id: 'p3', name: 'Apple Vocal Clarity' },
+      { id: 'p4', name: 'Reference Flat' }
+    ];
+
+    // STATE
+    let currentSongIndex = 0;
+    let isPlaying = false;
+    let currentTime = 0;
+    let timerId = null;
+    let isFavorite = true;
+    let activeTab = 'now_playing';
+    let isPhoneFrame = true;
+    let activeDeviceIndex = 0;
+    let selectedPresetId = 'p1';
+
+    // Optics state
+    let refractionPower = 55;
+    let magnification = 1.18;
+    let waterDroplets = true;
+
+    // Web Audio Synthesizer
+    let audioCtx = null;
+    let masterGain = null;
+    let analyser = null;
+    let synthInterval = null;
+
+    function initAudioEngine() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+          masterGain = audioCtx.createGain();
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 64;
+          masterGain.connect(analyser);
+          analyser.connect(audioCtx.destination);
+          masterGain.gain.setValueAtTime(0.7, audioCtx.currentTime);
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function triggerSynthTone() {
+      if (!audioCtx || !isPlaying) return;
+      try {
+        const song = SONGS[currentSongIndex];
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(song.synthFreq * (1 + (currentTime % 4) * 0.2), audioCtx.currentTime);
+
+        gain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.35);
+      } catch (e) {}
+    }
+
+    // INITIALIZATION
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      updateClock();
+      setInterval(updateClock, 10000);
+      renderCurrentSong();
+      renderLists();
+      setup3DTilt();
+      startSpectrumCanvas();
+    });
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clockDisplay').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+
+    function renderCurrentSong() {
+      const song = SONGS[currentSongIndex];
+      
+      document.getElementById('mainAlbumArt').src = song.albumArt;
+      document.getElementById('refractAlbumArt').src = song.albumArt;
+      document.getElementById('heroArt').src = song.albumArt;
+      document.getElementById('miniArt').src = song.albumArt;
+
+      document.getElementById('songTitleText').innerText = song.title;
+      document.getElementById('artistNameText').innerText = song.artist;
+      document.getElementById('albumNameText').innerText = song.album;
+      document.getElementById('hiResBadgeText').innerText = song.hiResFormat;
+      document.getElementById('miniTitle').innerText = song.title;
+      document.getElementById('miniArtist').innerText = song.artist;
+      document.getElementById('lyricsSubText').innerText = `${song.title} — ${song.artist}`;
+
+      // Ambient glows
+      document.getElementById('ambientGlow1').style.background = `radial-gradient(circle at 30% 20%, ${song.glowColor} 0%, transparent 70%)`;
+      document.getElementById('artworkUnderglow').style.background = `radial-gradient(circle, ${song.glowColor} 0%, transparent 70%)`;
+
+      // Slider & time
+      document.getElementById('seekSlider').max = song.duration;
+      updateTimeDisplay();
+      renderLyrics();
+      renderQueue();
+    }
+
+    function updateTimeDisplay() {
+      const song = SONGS[currentSongIndex];
+      document.getElementById('seekSlider').value = currentTime;
+      document.getElementById('currentTimeText').innerText = formatTime(currentTime);
+      document.getElementById('remainingTimeText').innerText = '-' + formatTime(song.duration - currentTime);
+      highlightCurrentLyric();
+    }
+
+    function formatTime(secs) {
+      const m = Math.floor(secs / 60);
+      const s = Math.floor(secs % 60);
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function togglePlay() {
+      initAudioEngine();
+      isPlaying = !isPlaying;
+
+      const playIcons = ['mainPlayIcon', 'miniPlayIcon'];
+      playIcons.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
+        }
+      });
+      lucide.createIcons();
+
+      if (isPlaying) {
+        timerId = setInterval(() => {
+          currentTime++;
+          if (currentTime >= SONGS[currentSongIndex].duration) {
+            nextSong();
+          } else {
+            updateTimeDisplay();
+            triggerSynthTone();
+          }
+        }, 1000);
+      } else {
+        if (timerId) clearInterval(timerId);
+      }
+    }
+
+    function nextSong() {
+      currentSongIndex = (currentSongIndex + 1) % SONGS.length;
+      currentTime = 0;
+      renderCurrentSong();
+      if (isPlaying) {
+        triggerSynthTone();
+      }
+    }
+
+    function prevSong() {
+      currentSongIndex = (currentSongIndex - 1 + SONGS.length) % SONGS.length;
+      currentTime = 0;
+      renderCurrentSong();
+    }
+
+    function onSeekInput(val) {
+      currentTime = parseInt(val, 10);
+      updateTimeDisplay();
+    }
+
+    function selectSong(idx) {
+      currentSongIndex = idx;
+      currentTime = 0;
+      renderCurrentSong();
+      if (!isPlaying) togglePlay();
+      switchTab('now_playing');
+    }
+
+    function toggleFavorite() {
+      isFavorite = !isFavorite;
+      const icon = document.getElementById('favoriteIcon');
+      if (isFavorite) {
+        icon.classList.add('fill-pink-500', 'text-pink-500');
+        showToast('Saved to Loved Tracks');
+      } else {
+        icon.classList.remove('fill-pink-500', 'text-pink-500');
+      }
+    }
+
+    // TAB SWITCHING
+    function switchTab(tabId) {
+      activeTab = tabId;
+      ['now_playing', 'discover', 'library', 'search', 'equalizer'].forEach(t => {
+        const view = document.getElementById(`view-${t}`);
+        const nav = document.getElementById(`nav-${t}`);
+        if (view) {
+          if (t === tabId) view.classList.remove('hidden');
+          else view.classList.add('hidden');
+        }
+        if (nav) {
+          const pill = nav.querySelector('.pill-indicator');
+          const icon = nav.querySelector('i');
+          const label = nav.querySelector('span');
+          if (t === tabId) {
+            pill.classList.add('bg-cyan-500/30', 'border', 'border-cyan-400/50');
+            icon.classList.add('text-white');
+            icon.classList.remove('text-white/55');
+            label.classList.add('text-white');
+            label.classList.remove('text-white/50');
+          } else {
+            pill.classList.remove('bg-cyan-500/30', 'border', 'border-cyan-400/50');
+            icon.classList.remove('text-white');
+            icon.classList.add('text-white/55');
+            label.classList.remove('text-white');
+            label.classList.add('text-white/50');
+          }
+        }
+      });
+
+      // Show/Hide mini player
+      const mini = document.getElementById('miniPlayer');
+      if (tabId !== 'now_playing') {
+        mini.classList.remove('hidden');
+        mini.classList.add('flex');
+      } else {
+        mini.classList.add('hidden');
+        mini.classList.remove('flex');
+      }
+    }
+
+    // MODALS
+    function toggleLyricsModal() {
+      const modal = document.getElementById('modal-lyrics');
+      modal.classList.toggle('hidden');
+    }
+
+    function toggleQueueModal() {
+      const modal = document.getElementById('modal-queue');
+      modal.classList.toggle('hidden');
+    }
+
+    function toggleOutputModal() {
+      const modal = document.getElementById('modal-output');
+      modal.classList.toggle('hidden');
+    }
+
+    function toggleOpticsModal() {
+      const modal = document.getElementById('modal-optics');
+      modal.classList.toggle('hidden');
+    }
+
+    // 3D TILT INTERACTION
+    function setup3DTilt() {
+      const card = document.getElementById('lensCard');
+      const container = document.getElementById('lensContainer');
+      const gloss = document.getElementById('glossHighlight');
+
+      container.addEventListener('mousemove', (e) => {
+        const rect = container.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+        const rotateY = (x / (rect.width / 2)) * 16;
+        const rotateX = -(y / (rect.height / 2)) * 16;
+        card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+        gloss.style.background = `radial-gradient(circle at ${((e.clientX - rect.left) / rect.width) * 100}% ${((e.clientY - rect.top) / rect.height) * 100}%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.3) 100%)`;
+      });
+
+      container.addEventListener('mouseleave', () => {
+        card.style.transform = `rotateX(0deg) rotateY(0deg)`;
+      });
+    }
+
+    // OPTICS ADJUSTMENTS
+    function updateRefraction(val) {
+      refractionPower = val;
+      document.getElementById('refractionValText').innerText = `${val}%`;
+      const disp = document.getElementById('feDisplacement');
+      if (disp) disp.setAttribute('scale', (val * 0.32).toString());
+    }
+
+    function updateZoom(val) {
+      magnification = val;
+      document.getElementById('zoomValText').innerText = `${val}x`;
+      document.getElementById('refractionLayer').style.transform = `scale(${val})`;
+    }
+
+    function toggleDropletsOptic() {
+      waterDroplets = !waterDroplets;
+      const overlay = document.getElementById('dropletsOverlay');
+      const btn = document.getElementById('dropletsToggleBtn');
+      if (waterDroplets) {
+        overlay.classList.remove('hidden');
+        btn.className = 'w-10 h-5 rounded-full bg-cyan-500 p-0.5 flex items-center justify-end';
+      } else {
+        overlay.classList.add('hidden');
+        btn.className = 'w-10 h-5 rounded-full bg-white/20 p-0.5 flex items-center justify-start';
+      }
+    }
+
+    // LIST RENDERERS
+    function renderLists() {
+      // Trending
+      const trendContainer = document.getElementById('trendingGrid');
+      trendContainer.innerHTML = SONGS.map((s, idx) => `
+        <div onclick="selectSong(${idx})" class="min-w-[130px] p-2.5 rounded-2xl bg-white/5 border border-white/10 hover:border-white/30 transition cursor-pointer group">
+          <img src="${s.albumArt}" class="w-full aspect-square rounded-xl object-cover mb-2 group-hover:scale-105 transition" />
+          <h4 class="text-xs font-bold text-white truncate">${s.title}</h4>
+          <p class="text-[11px] text-white/60 truncate">${s.artist}</p>
+        </div>
+      `).join('');
+
+      // Library
+      const libContainer = document.getElementById('librarySongList');
+      libContainer.innerHTML = SONGS.map((s, idx) => `
+        <div onclick="selectSong(${idx})" class="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 transition cursor-pointer">
+          <div class="flex items-center gap-3">
+            <img src="${s.albumArt}" class="w-11 h-11 rounded-xl object-cover" />
+            <div>
+              <h4 class="text-xs font-bold text-white">${s.title}</h4>
+              <p class="text-[11px] text-white/50">${s.artist}</p>
+            </div>
+          </div>
+          <button class="p-2 rounded-full bg-white/10"><i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i></button>
+        </div>
+      `).join('');
+
+      // Output Devices
+      const devContainer = document.getElementById('outputDeviceList');
+      devContainer.innerHTML = OUTPUT_DEVICES.map((d, i) => `
+        <div onclick="selectOutputDevice(${i})" class="p-3.5 rounded-2xl border ${i === activeDeviceIndex ? 'bg-cyan-500/20 border-cyan-400 text-white' : 'bg-white/5 border-white/10 text-white/80'} flex items-center justify-between cursor-pointer">
+          <div>
+            <h4 class="text-xs font-bold">${d.name}</h4>
+            <p class="text-[11px] text-white/50">${d.sub}</p>
+          </div>
+          ${i === activeDeviceIndex ? '<i data-lucide="check" class="w-4 h-4 text-cyan-400"></i>' : ''}
+        </div>
+      `).join('');
+
+      // EQ Presets
+      const presetContainer = document.getElementById('presetGrid');
+      presetContainer.innerHTML = PRESETS.map(p => `
+        <div onclick="selectPreset('${p.id}')" class="p-3 rounded-2xl border ${p.id === selectedPresetId ? 'bg-cyan-500/20 border-cyan-400 text-white' : 'bg-white/5 border-white/10 text-white/70'} cursor-pointer">
+          <span class="text-xs font-bold">${p.name}</span>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    function selectOutputDevice(idx) {
+      activeDeviceIndex = idx;
+      document.getElementById('activeDeviceText').innerText = OUTPUT_DEVICES[idx].name;
+      toggleOutputModal();
+      renderLists();
+    }
+
+    function selectPreset(id) {
+      selectedPresetId = id;
+      renderLists();
+    }
+
+    function renderLyrics() {
+      const song = SONGS[currentSongIndex];
+      const container = document.getElementById('lyricsList');
+      if (!song.lyrics) return;
+      container.innerHTML = song.lyrics.map((l, i) => `
+        <div id="lyric-${i}" onclick="jumpToTime(${l.time})" class="cursor-pointer transition-all p-2 rounded-2xl hover:bg-white/10">
+          <p class="text-xl sm:text-2xl font-extrabold tracking-tight text-white/70">${l.text}</p>
+        </div>
+      `).join('');
+    }
+
+    function highlightCurrentLyric() {
+      const song = SONGS[currentSongIndex];
+      if (!song.lyrics) return;
+      let activeIdx = -1;
+      for (let i = 0; i < song.lyrics.length; i++) {
+        if (currentTime >= song.lyrics[i].time) activeIdx = i;
+      }
+      song.lyrics.forEach((_, i) => {
+        const el = document.getElementById(`lyric-${i}`);
+        if (el) {
+          if (i === activeIdx) {
+            el.className = 'cursor-pointer transition-all p-2 rounded-2xl bg-white/10 border border-white/20 text-cyan-300 scale-105';
+          } else {
+            el.className = 'cursor-pointer transition-all p-2 rounded-2xl hover:bg-white/10 text-white/40';
+          }
+        }
+      });
+    }
+
+    function jumpToTime(t) {
+      currentTime = t;
+      updateTimeDisplay();
+    }
+
+    function renderQueue() {
+      const container = document.getElementById('queueList');
+      container.innerHTML = SONGS.map((s, idx) => `
+        <div onclick="selectSong(${idx})" class="flex items-center justify-between p-2.5 rounded-2xl ${idx === currentSongIndex ? 'bg-cyan-500/20 border border-cyan-400' : 'bg-white/5 border border-white/5'} transition cursor-pointer">
+          <div class="flex items-center gap-3">
+            <img src="${s.albumArt}" class="w-10 h-10 rounded-lg object-cover" />
+            <div>
+              <h4 class="text-xs font-bold text-white">${s.title}</h4>
+              <p class="text-[11px] text-white/50">${s.artist}</p>
+            </div>
+          </div>
+          <span class="text-[11px] font-mono text-white/40">${formatTime(s.duration)}</span>
+        </div>
+      `).join('');
+    }
+
+    function onSearchInput(val) {
+      const container = document.getElementById('searchResultsList');
+      const filtered = SONGS.filter(s => s.title.toLowerCase().includes(val.toLowerCase()) || s.artist.toLowerCase().includes(val.toLowerCase()));
+      container.innerHTML = filtered.map(s => `
+        <div onclick="selectSong(${SONGS.indexOf(s)})" class="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 transition cursor-pointer">
+          <div class="flex items-center gap-3">
+            <img src="${s.albumArt}" class="w-10 h-10 rounded-lg object-cover" />
+            <div>
+              <h4 class="text-xs font-bold text-white">${s.title}</h4>
+              <p class="text-[11px] text-white/50">${s.artist}</p>
+            </div>
+          </div>
+          <i data-lucide="play" class="w-4 h-4 text-white"></i>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    function togglePhoneFrame() {
+      isPhoneFrame = !isPhoneFrame;
+      const frame = document.getElementById('phoneFrame');
+      const text = document.getElementById('frameBtnText');
+      if (isPhoneFrame) {
+        frame.className = 'relative w-full max-w-[400px] h-[830px] rounded-[52px] bg-black p-3.5 border-[5px] border-slate-800/90 shadow-[0_25px_70px_rgba(0,0,0,0.95),0_0_50px_rgba(6,182,212,0.25)] flex flex-col overflow-hidden ring-1 ring-white/20 my-auto transition-all duration-300';
+        text.innerText = 'Viewport Mode';
+      } else {
+        frame.className = 'relative w-full max-w-2xl h-[820px] rounded-3xl bg-black border border-white/10 shadow-2xl flex flex-col overflow-hidden my-auto transition-all duration-300';
+        text.innerText = 'Phone Frame';
+      }
+    }
+
+    function showToast(msg) {
+      const banner = document.getElementById('toastBanner');
+      document.getElementById('toastMsg').innerText = msg;
+      banner.classList.remove('hidden');
+      setTimeout(() => banner.classList.add('hidden'), 2200);
+    }
+
+    // SPECTRUM CANVAS ANIMATION
+    function startSpectrumCanvas() {
+      const canvas = document.getElementById('spectrumCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const barWidth = (canvas.width / 24) - 2;
+        let x = 0;
+
+        for (let i = 0; i < 24; i++) {
+          const val = isPlaying ? Math.sin(Date.now() / 150 + i * 0.4) * 25 + 35 : 6;
+          const grad = ctx.createLinearGradient(0, canvas.height, 0, 0);
+          grad.addColorStop(0, '#06b6d4');
+          grad.addColorStop(1, '#38bdf8');
+          ctx.fillStyle = grad;
+          ctx.fillRect(x, canvas.height - val, barWidth, val);
+          x += barWidth + 2;
+        }
+        requestAnimationFrame(draw);
+      }
+      draw();
+    }
+  </script>
+</body>
+</html>
